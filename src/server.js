@@ -35,7 +35,8 @@ app.use(cors({
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true)
     } else {
-      callback(new Error('Not allowed by CORS'))
+      console.warn(`[CORS] Rejected origin: ${origin}`)
+      callback(null, false) // Don't throw error, just reject
     }
   }
 }))
@@ -125,25 +126,29 @@ app.get("/search", authenticate, async (req, res) => {
 
     // 1️⃣ Process LinkedIn (from local cache)
     try {
-      const data = fs.readFileSync("linkedin_jobs_india.json", "utf8")
-      const linkedinJobs = JSON.parse(data)
+      if (fs.existsSync("linkedin_jobs_india.json")) {
+        const data = await fs.promises.readFile("linkedin_jobs_india.json", "utf8")
+        const linkedinJobs = JSON.parse(data)
 
-      // Tight Filter: Match only against TITLE for better relevance
-      const filteredLinkedIn = linkedinJobs.filter(job => 
-        job.title.toLowerCase().includes(keyword.toLowerCase())
-      )
+        // Tight Filter: Match only against TITLE for better relevance
+        const filteredLinkedIn = linkedinJobs.filter(job => 
+          job.title.toLowerCase().includes(keyword.toLowerCase())
+        )
 
-      results.push(
-        ...filteredLinkedIn.map(job => ({
-          title: job.title,
-          company: job.company,
-          location: job.location, // Already has company inside JSON sometimes
-          source: "LinkedIn",
-          url: job.link
-        }))
-      )
+        results.push(
+          ...filteredLinkedIn.map(job => ({
+            title: job.title,
+            company: job.company,
+            location: job.location,
+            source: "LinkedIn",
+            url: job.link
+          }))
+        )
+      } else {
+        console.log("LinkedIn cache file missing, skipping...")
+      }
     } catch (err) {
-      console.log("LinkedIn jobs not loaded")
+      console.error("LinkedIn processing error:", err.message)
     }
 
     // 2️⃣ Process External APIs
