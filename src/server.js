@@ -109,17 +109,13 @@ app.get("/search", authenticate, async (req, res) => {
       ),
 
       //  Arbeitnow
-      axios.get(process.env.API3_URL, { 
-        params: { search: keyword },
-        timeout: 8000 
-      }),
+      axios.get(process.env.API3_URL, { timeout: 8000 }),
 
       //  Jobicy
-      axios.get(process.env.API4_URL, { 
-        params: { search: keyword },
-        timeout: 8000 
-      })
+      axios.get(process.env.API4_URL, { timeout: 8000 })
     ]
+
+    const responses = await Promise.allSettled(requests)
 
     // 📊 Aggregator results
     let results = []
@@ -175,7 +171,9 @@ app.get("/search", authenticate, async (req, res) => {
       },
       {
         source: "Arbeitnow",
-        extract: (data) => data.data?.map(job => ({
+        extract: (data) => data.data?.filter(job => 
+          job.title.toLowerCase().includes(keyword.toLowerCase())
+        ).map(job => ({
           title: job.title,
           company: job.company_name,
           location: job.location,
@@ -185,7 +183,9 @@ app.get("/search", authenticate, async (req, res) => {
       },
       {
         source: "Jobicy",
-        extract: (data) => data.jobs?.map(job => ({
+        extract: (data) => data.jobs?.filter(job => 
+          job.jobTitle.toLowerCase().includes(keyword.toLowerCase())
+        ).map(job => ({
           title: job.jobTitle,
           company: job.companyName,
           location: job.jobGeo,
