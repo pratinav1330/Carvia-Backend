@@ -108,10 +108,16 @@ app.get("/search", authenticate, async (req, res) => {
       ),
 
       //  Arbeitnow
-      axios.get(process.env.API3_URL, { timeout: 8000 }),
+      axios.get(process.env.API3_URL, { 
+        params: { search: keyword },
+        timeout: 8000 
+      }),
 
       //  Jobicy
-      axios.get(process.env.API4_URL, { timeout: 8000 })
+      axios.get(process.env.API4_URL, { 
+        params: { search: keyword },
+        timeout: 8000 
+      })
     ]
 
     const responses = await Promise.allSettled(requests)
@@ -121,8 +127,14 @@ app.get("/search", authenticate, async (req, res) => {
       const data = fs.readFileSync("linkedin_jobs_india.json", "utf8")
       const linkedinJobs = JSON.parse(data)
 
+      // Filter LinkedIn jobs by keyword locally
+      const filteredLinkedIn = linkedinJobs.filter(job => 
+        job.title.toLowerCase().includes(keyword.toLowerCase()) ||
+        job.keyword.toLowerCase().includes(keyword.toLowerCase())
+      )
+
       results.push(
-        ...linkedinJobs.map(job => ({
+        ...filteredLinkedIn.map(job => ({
           title: job.title,
           company: job.company,
           location: job.location,
