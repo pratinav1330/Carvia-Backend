@@ -16,9 +16,6 @@ const PORT = process.env.PORT || 5000
 // Security Middlewares
 app.use(helmet()) // Add security headers
 
-// Reverse Proxy Support (e.g. for Render, Heroku)
-app.set('trust proxy', 1)
-
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -30,12 +27,9 @@ app.use(limiter)
 // Strict CORS
 const allowedOrigins = [
   "http://localhost:5173", // Vite default dev
-  "http://localhost:3000"
+  "http://localhost:3000",
+  // TODO: The user will need to add their production frontend URL here later, e.g. "https://carvia.vercel.app"
 ]
-
-if (process.env.FRONTEND_URL) {
-  allowedOrigins.push(process.env.FRONTEND_URL)
-}
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
@@ -117,17 +111,14 @@ app.get("/search", authenticate, async (req, res) => {
       axios.get(process.env.API3_URL, { timeout: 8000 }),
 
       //  Jobicy
-      axios.get(process.env.API4_URL, { timeout: 8000 }),
-
-      //  Remotive
-      axios.get(`https://remotive.com/api/remote-jobs?search=${keyword}`, { timeout: 8000 })
+      axios.get(process.env.API4_URL, { timeout: 8000 })
     ]
 
     const responses = await Promise.allSettled(requests)
     const results = []
     // LinkedIn scraped jobs
     try {
-      const data = await fs.promises.readFile("linkedin_jobs_india.json", "utf8")
+      const data = fs.readFileSync("linkedin_jobs_india.json", "utf8")
       const linkedinJobs = JSON.parse(data)
 
       results.push(
@@ -201,22 +192,6 @@ app.get("/search", authenticate, async (req, res) => {
             company: job.companyName,
             location: job.jobGeo,
             source: "Jobicy",
-            url: job.url
-          }))
-        )
-      }
-    }
-
-    //  Remotive
-    if (responses[4].status === "fulfilled") {
-      const data = responses[4].value.data
-      if (data.jobs) {
-        results.push(
-          ...data.jobs.map(job => ({
-            title: job.title,
-            company: job.company_name,
-            location: job.candidate_required_location || "Remote",
-            source: "Remotive",
             url: job.url
           }))
         )
