@@ -120,24 +120,24 @@ app.get("/search", authenticate, async (req, res) => {
       })
     ]
 
-    const responses = await Promise.allSettled(requests)
-    const results = []
-    // LinkedIn scraped jobs
+    // 📊 Aggregator results
+    let results = []
+
+    // 1️⃣ Process LinkedIn (from local cache)
     try {
       const data = fs.readFileSync("linkedin_jobs_india.json", "utf8")
       const linkedinJobs = JSON.parse(data)
 
-      // Filter LinkedIn jobs by keyword locally
+      // Tight Filter: Match only against TITLE for better relevance
       const filteredLinkedIn = linkedinJobs.filter(job => 
-        job.title.toLowerCase().includes(keyword.toLowerCase()) ||
-        job.keyword.toLowerCase().includes(keyword.toLowerCase())
+        job.title.toLowerCase().includes(keyword.toLowerCase())
       )
 
       results.push(
         ...filteredLinkedIn.map(job => ({
           title: job.title,
           company: job.company,
-          location: job.location,
+          location: job.location, // Already has company inside JSON sometimes
           source: "LinkedIn",
           url: job.link
         }))
@@ -146,69 +146,59 @@ app.get("/search", authenticate, async (req, res) => {
       console.log("LinkedIn jobs not loaded")
     }
 
-    // 🔹 Findwork
-    if (responses[0].status === "fulfilled") {
-      const data = responses[0].value.data
-      if (data.results) {
-        results.push(
-          ...data.results.map(job => ({
-            title: job.role,
-            company: job.company_name,
-            location: job.location,
-            source: "Findwork",
-            url: job.url
-          }))
-        )
+    // 2️⃣ Process External APIs
+    const apiMappings = [
+      {
+        source: "Findwork",
+        extract: (data) => data.results?.map(job => ({
+          title: job.role,
+          company: job.company_name,
+          location: job.location,
+          source: "Findwork",
+          url: job.url
+        }))
+      },
+      {
+        source: "Jooble",
+        extract: (data) => data.jobs?.map(job => ({
+          title: job.title,
+          company: job.company,
+          location: job.location,
+          source: "Jooble",
+          url: job.link
+        }))
+      },
+      {
+        source: "Arbeitnow",
+        extract: (data) => data.data?.map(job => ({
+          title: job.title,
+          company: job.company_name,
+          location: job.location,
+          source: "Arbeitnow",
+          url: job.url
+        }))
+      },
+      {
+        source: "Jobicy",
+        extract: (data) => data.jobs?.map(job => ({
+          title: job.jobTitle,
+          company: job.companyName,
+          location: job.jobGeo,
+          source: "Jobicy",
+          url: job.url
+        }))
       }
-    }
+    ]
 
-    //  Jooble
-    if (responses[1].status === "fulfilled") {
-      const data = responses[1].value.data
-      if (data.jobs) {
-        results.push(
-          ...data.jobs.map(job => ({
-            title: job.title,
-            company: job.company,
-            location: job.location,
-            source: "Jooble",
-            url: job.link
-          }))
-        )
+    responses.forEach((resp, index) => {
+      if (resp.status === "fulfilled") {
+        const extracted = apiMappings[index].extract(resp.value.data)
+        if (extracted) results.push(...extracted)
       }
-    }
+    })
 
-    //  Arbeitnow
-    if (responses[2].status === "fulfilled") {
-      const data = responses[2].value.data
-      if (data.data) {
-        results.push(
-          ...data.data.map(job => ({
-            title: job.title,
-            company: job.company_name,
-            location: job.location,
-            source: "Arbeitnow",
-            url: job.url
-          }))
-        )
-      }
-    }
-
-    //  Jobicy
-    if (responses[3].status === "fulfilled") {
-      const data = responses[3].value.data
-      if (data.jobs) {
-        results.push(
-          ...data.jobs.map(job => ({
-            title: job.jobTitle,
-            company: job.companyName,
-            location: job.jobGeo,
-            source: "Jobicy",
-            url: job.url
-          }))
-        )
-      }
-    }
+    // 3️⃣ Shuffle results to interleave sources (more premium feel)
+    results = results.sort(() => Math.random() - 0.5)
 
     res.json({
       total: results.length,
