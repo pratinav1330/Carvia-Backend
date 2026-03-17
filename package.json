@@ -1,0 +1,20 @@
+{
+  "name": "carvia-backend",
+  "version": "1.0.0",
+  "description": "Backend for Carvia Job Portal",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.95.3",
+    "axios": "^1.13.6",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^4.22.1",
+    "express-rate-limit": "^8.3.1",
+    "helmet": "^8.1.0"
+  }
+}
