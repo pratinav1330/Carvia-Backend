@@ -28,7 +28,7 @@ app.use(limiter)
 const allowedOrigins = [
   "http://localhost:5173", // Vite default dev
   "http://localhost:3000",
-  // TODO: The user will need to add their production frontend URL here later, e.g. "https://carvia.vercel.app"
+  "https://carvia-jobs.vercel.app"
 ]
 app.use(cors({
   origin: function (origin, callback) {
